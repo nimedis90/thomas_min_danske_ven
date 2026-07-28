@@ -6,9 +6,9 @@ Componenti visivi per il rendering delle risposte del Tutor.
 import streamlit as st
 from utils.translations import FLAG_MAP
 
-def parse_gemini_response(raw_text: str) -> tuple[str, str, str]:
-    """Scompone il testo grezzo di Gemini nelle 3 sezioni."""
-    feedback, target_text, native_text = "", "", ""
+def parse_gemini_response(raw_text: str) -> tuple[str, str, str, str]:
+    """Scompone il testo grezzo di Gemini nelle 4 sezioni."""
+    feedback, target_text, native_text, vocabulary = "", "", "", ""
 
     if "### FEEDBACK" in raw_text and "### NEWS_TARGET" in raw_text:
         parts = raw_text.split("### ")
@@ -19,14 +19,20 @@ def parse_gemini_response(raw_text: str) -> tuple[str, str, str]:
                 target_text = part.replace("NEWS_TARGET", "").strip()
             elif part.startswith("NEWS_NATIVE"):
                 native_text = part.replace("NEWS_NATIVE", "").strip()
+            elif part.startswith("VOCABULARY"):
+                vocabulary = part.replace("VOCABULARY", "").strip()
     else:
         target_text = raw_text
 
-    return feedback, target_text, native_text
+    return feedback, target_text, native_text, vocabulary
 
-def render_assistant_message(raw_text: str, native_lang: str, target_lang: str, ui: dict):
-    """Renderizza il messaggio dell'assistente dividendo feedback e schede di traduzione."""
-    feedback, target_text, native_text = parse_gemini_response(raw_text)
+
+def render_assistant_message(raw_text: str, native_lang: str, target_lang: str, ui: dict) -> str:
+    """
+    Renderizza la chat al centro e restituisce il testo del vocabolario
+    per poterlo mostrare nella colonna laterale.
+    """
+    feedback, target_text, native_text, vocabulary = parse_gemini_response(raw_text)
 
     flag_native = FLAG_MAP.get(native_lang, "🌐")
     flag_target = FLAG_MAP.get(target_lang, "🌐")
@@ -51,3 +57,6 @@ def render_assistant_message(raw_text: str, native_lang: str, target_lang: str, 
                 st.markdown(f"{ui['translation_support']}\n\n{native_text}")
             else:
                 st.info("Translation not available.")
+
+    # Restituiamo il vocabolario per la colonna dedicata
+    return vocabulary

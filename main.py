@@ -60,30 +60,56 @@ st.title(f"{ui['main_title']} {target_lang}")
 if start_button and target_area.strip():
     init_session()
 
-# Schermata di Benvenuto vs Chat Attiva
+# SCHERMATA DI BENVENUTO vs CHAT ATTIVA
 if st.session_state.chat_instance is None:
+    # 1. WELCOME SCREEN (Shown only before clicking Start)
     st.info(ui["info_banner"])
     st.markdown(f"{ui['how_it_works_title']}\n{ui['step_1']}\n{ui['step_2']}\n{ui['step_3']}")
+
 else:
-    st.subheader(ui["location_header"].format(area=target_area, level=selected_level))
-    st.caption(f"📌 **Focus:** {topics_str}")
+    # 2. ACTIVE LESSON SCREEN (Shown only after lesson starts)
+    col_chat, col_vocab = st.columns([2.2, 1], gap="large")
 
-    # Storico Chat
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "user":
-                st.markdown(msg["content"])
-            else:
-                render_assistant_message(msg["content"], native_lang, target_lang, ui)
+    # --- COLONNA 1: CHAT PRINCIPALE ---
+    with col_chat:
+        st.subheader(ui["location_header"].format(area=target_area, level=selected_level))
+        st.caption(f"📌 **Focus:** {topics_str}")
 
-    # Input Utente
-    if user_input := st.chat_input(ui["chat_placeholder"].format(target=target_lang)):
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.markdown(user_input)
+        last_vocab = ""
+        # Render Chat History
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                if msg["role"] == "user":
+                    st.markdown(msg["content"])
+                else:
+                    vocab = render_assistant_message(msg["content"], native_lang, target_lang, ui)
+                    if vocab:
+                        last_vocab = vocab
 
-        with st.chat_message("assistant"):
-            with st.spinner(ui["analyzing_spinner"]):
-                reply = st.session_state.chat_instance.send_message(user_input)
-                render_assistant_message(reply.text, native_lang, target_lang, ui)
-                st.session_state.messages.append({"role": "assistant", "content": reply.text})
+        # User Chat Input
+        if user_input := st.chat_input(
+            ui["chat_placeholder"].format(target=target_lang), 
+            key="main_chat_input"
+        ):
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            with st.chat_message("user"):
+                st.markdown(user_input)
+
+            with st.chat_message("assistant"):
+                with st.spinner(ui["analyzing_spinner"]):
+                    reply = st.session_state.chat_instance.send_message(user_input)
+                    vocab = render_assistant_message(reply.text, native_lang, target_lang, ui)
+                    if vocab:
+                        last_vocab = vocab
+                    st.session_state.messages.append({"role": "assistant", "content": reply.text})
+                    st.rerun()
+
+    # --- COLONNA 2: SMART CHEAT SHEET ---
+    with col_vocab:
+        st.subheader("📚 Smart Cheat Sheet")
+        st.caption("Parole e aiuti estrapolati dalla lezione corrente:")
+        
+        if last_vocab:
+            st.info(last_vocab)
+        else:
+            st.write("Inizia la lezione per visualizzare i vocaboli utili!")
